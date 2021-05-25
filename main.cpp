@@ -54,6 +54,14 @@ public:
         adjTypes.push_back("-Charge Reduction");
         adjTypes.push_back("-Care Credit Discount");
         adjTypes.push_back("+Pre-Conversion Debit Balance");
+        adjTypes.push_back("Care Credit Payment");
+        adjTypes.push_back("Cash Payment");
+        adjTypes.push_back("Check Payment");
+        adjTypes.push_back("Credit Card Payment");
+        adjTypes.push_back("INS Credit Card Payment");
+        adjTypes.push_back("Insurance ACH Payment");
+        adjTypes.push_back("Insurance Payment");
+        
         loadHygenists();
         this->indexDaySheet(daySheet);
     }
@@ -62,8 +70,9 @@ public:
 
 int GetAdjType(const std::string& desc, const std::vector<std::string>& adjTypes) {
     for(int i = 1; i < adjTypes.size(); i++) {
-        if(std::strcmp(desc.c_str(), adjTypes[i].c_str()) == 0) {
-            //std::cout << "adj matched" << std::endl;
+        if(std::strncmp(desc.c_str(), adjTypes[i].c_str(), adjTypes[i].length()) == 0) {
+            //if (i >= 30)
+                //std::cout << "payment matched" << std::endl;
             return i;
         }
     }
@@ -199,7 +208,7 @@ void ReportGenerator::ProdAdjReport() {
         prov[procs[i]->priProvider].push_back(i);
     }
 
-    std::vector<double> totals = std::vector<double>(30, 0.0);
+    std::vector<double> totals = std::vector<double>(37, 0.0);
     for(std::unordered_map<std::string, std::vector<std::string> >::iterator it = clinics.begin(); 
         it != clinics.end(); ++it) {
 
@@ -210,17 +219,36 @@ void ReportGenerator::ProdAdjReport() {
             if(hyg.find(currProv) != hyg.end() || currProv.find("SUSPENDED CREDITS") != currProv.npos)
                 continue;
             std::cout << '\t' << currProv << std::endl;
+
+            //Add each procedure to category total
             for(int j = 0; j < prov[currProv].size(); j++) {
                 int index = prov[currProv][j];
                 if((procs[index]->amt >= 0 && procs[index]->adjType == 0) || procs[index]->adjType != 0)
                     totals[procs[index]->adjType] += procs[index]->amt;
             }
 
-            for(int k = 0; k < adjTypes.size(); k++) {
-                std::printf("\t\t|\t%-50s:%10.2f", adjTypes[k].c_str(), totals[k]);
+            //print production
+            std::cout << "\t\t" << currProv << " Production Summary" << std::endl;
+            double subtotal = 0.0;
+            for(int k = 0; k < 30; k++) {
+                std::printf("\t\t\t|\t%-50s:%10.2f", adjTypes[k].c_str(), totals[k]);
+                subtotal += totals[k];
                 totals[k] = 0.0;
                 std::cout << std::endl;
             }
+            std::cout << "\t\t\tProduction subtotal: " << subtotal << std::endl;
+
+            //print payments summary
+            std::cout << "\t\t" << currProv << " Payments Summary" << std::endl;
+            subtotal = 0.0;
+            for(int k = 30; k < adjTypes.size(); k++) {
+                std::printf("\t\t\t|\t%-50s:%10.2f", adjTypes[k].c_str(), totals[k]);
+                subtotal += totals[k];
+                totals[k] = 0.0;
+                std::cout << std::endl;
+            }
+            std::cout << "\t\t\tPayments subtotal: " << subtotal << std::endl << std::endl;
+
         } //doctor for
 
         std::cout << it->first << " Hygiene Production" << std::endl;
@@ -230,17 +258,34 @@ void ReportGenerator::ProdAdjReport() {
             if(hyg.find(currProv) == hyg.end() || currProv.find("SUSPENDED CREDITS") != currProv.npos) 
                 continue;
             std::cout << '\t' << currProv << std::endl;
+            //Add each procedure to category total
             for(int j = 0; j < prov[currProv].size(); j++) {
                 int index = prov[currProv][j];
                 if((procs[index]->amt >= 0 && procs[index]->adjType == 0) || procs[index]->adjType != 0)
                     totals[procs[index]->adjType] += procs[index]->amt;
             }
 
-            for(int k = 0; k < adjTypes.size(); k++) {
-                std::printf("\t\t|\t%-50s:%10.2f", adjTypes[k].c_str(), totals[k]);
+            //print production
+            std::cout << "\t\t" << currProv << " Production Summary" << std::endl;
+            double subtotal = 0.0;
+            for(int k = 0; k < 30; k++) {
+                std::printf("\t\t\t|\t%-50s:%10.2f", adjTypes[k].c_str(), totals[k]);
+                subtotal += totals[k];
                 totals[k] = 0.0;
                 std::cout << std::endl;
             }
+            std::cout << "\t\t\tProduction subtotal: " << subtotal << std::endl;
+
+            //print payments summary
+            std::cout << "\t\t" << currProv << " Payments Summary" << std::endl;
+            subtotal = 0.0;
+            for(int k = 30; k < adjTypes.size(); k++) {
+                std::printf("\t\t\t|\t%-50s:%10.2f", adjTypes[k].c_str(), totals[k]);
+                subtotal += totals[k];
+                totals[k] = 0.0;
+                std::cout << std::endl;
+            }
+            std::cout << "\t\t\tPayments subtotal: " << subtotal << std::endl << std::endl << std::endl;
         } //hygiene for
 
         std::cout << it->first << " Suspended Credits" << std::endl;
@@ -258,6 +303,7 @@ void ReportGenerator::ProdAdjReport() {
             totals[k] = 0.0;
             std::cout << std::endl;
         }
+        std::cout << std::endl << std::endl;
 
     } // clinic for
 }
