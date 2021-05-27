@@ -8,6 +8,7 @@ echo `rm *summary.csv`
 #create csvs needed
 echo `touch CDGsummary.csv`
 echo `touch CPDsummary.csv`
+echo `touch clinicsummary.csv`
 
 #compile and link code into executable main
 echo `g++ -std=c++17 -c main.cpp row.cpp row.h`
