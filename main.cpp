@@ -1,8 +1,15 @@
+#ifndef CDG_MAIN_CPP
+#define CDG_MAIN_CPP
+
+#include "main.h"
 #include <string>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include "row.h"
+#include "provider.h"
+#include "clinic.h"
 #include <cassert>
 #include <vector>
 #include <unordered_map>
@@ -10,114 +17,7 @@
 #include <stdio.h>
 #include <algorithm>
 
-class ReportGenerator {
-private:
-    std::unordered_map<std::string, std::vector<std::string> > clinics;
-    std::unordered_map<std::string, std::vector<int> > prov;
-    std::unordered_set<std::string> hyg;
-    std::vector<Procedure*> procs;
-    std::vector<std::string> adjTypes;
-    std::vector<double> clinicTotal;
-    std::vector<double> grandTotal;
-    std::vector<double> roleTotal;
-    std::vector<int> printOrder;
-    std::string hygenistFile = "files/hygenists.csv";
-    bool failed;
-
-    void addToRole(std::vector<double>& toAdd);
-    void addRoleToClinic();
-    void addClinicToGrand();
-    void indexDaySheet(std::string daySheet);
-    void loadHygenists();
-    void printHeader(std::fstream& out, std::string& provName);
-    void printGrandSummary();
-public:
-    ReportGenerator(std::string daySheet): failed(false) {
-        adjTypes.push_back("Gross Production");
-        adjTypes.push_back("-Ins Credit Adj");
-        adjTypes.push_back("+Ins Debit Adj");
-        adjTypes.push_back("-Professional Allowance");
-        adjTypes.push_back("+Other Dr Production Adjustment");
-        adjTypes.push_back("-Other Dr Production Adjustment");
-        adjTypes.push_back("-Hygiene Adjustment - Hygienist");
-        adjTypes.push_back("-Hygiene Adjustment - Dr.");
-        adjTypes.push_back("-Pre-Conversion Credit Balance"); //8
-        adjTypes.push_back("-Senior Citizen Courtesy");
-        adjTypes.push_back("-Staff Courtesy");
-        adjTypes.push_back("-Reverse Finance Charges");
-        adjTypes.push_back("+Pre-Conversion Debit Balance"); //12
-        adjTypes.push_back("-Pre-Conversion Credit"); //13
-        adjTypes.push_back("-Reversal of Bank Fee");
-        adjTypes.push_back("+Bank Fee");
-        adjTypes.push_back("-Write Off");
-        adjTypes.push_back("+Payment Transfer From");
-        adjTypes.push_back("-Payment Transfer To");
-        adjTypes.push_back("+Patient Refund - Check");
-        adjTypes.push_back("+Patient Refund Credit Card");
-        adjTypes.push_back("+Insurance Refund");
-        adjTypes.push_back("-Void Refund");
-        adjTypes.push_back("+Returned Check");
-        adjTypes.push_back("+Pt Initiated Credit Card Charge Back");
-        adjTypes.push_back("-Transfer Balance From");
-        adjTypes.push_back("+Transfer Balance To");
-        adjTypes.push_back("-Charge Reduction");
-        adjTypes.push_back("-Care Credit Discount");
-        adjTypes.push_back("+Pre-Conversion Debit"); //29
-        adjTypes.push_back("Care Credit Payment");
-        adjTypes.push_back("Cash Payment");
-        adjTypes.push_back("Check Payment");
-        adjTypes.push_back("Credit Card Payment");
-        adjTypes.push_back("INS Credit Card Payment");
-        adjTypes.push_back("Insurance ACH Payment");
-        adjTypes.push_back("Insurance Payment");
-        
-        printOrder.push_back(0);
-        printOrder.push_back(3);
-        printOrder.push_back(4);
-        printOrder.push_back(5);
-        printOrder.push_back(6);
-        printOrder.push_back(7);
-        printOrder.push_back(9);
-        printOrder.push_back(10);
-        printOrder.push_back(27);
-        printOrder.push_back(1);
-        printOrder.push_back(2);
-        printOrder.push_back(13);
-        printOrder.push_back(11);
-        printOrder.push_back(29);
-        printOrder.push_back(8);
-        printOrder.push_back(14);
-        printOrder.push_back(15);
-        printOrder.push_back(16);
-        printOrder.push_back(17);
-        printOrder.push_back(18);
-        printOrder.push_back(19);
-        printOrder.push_back(20);
-        printOrder.push_back(21);
-        printOrder.push_back(22);
-        printOrder.push_back(23);
-        printOrder.push_back(24);
-        printOrder.push_back(25);
-        printOrder.push_back(26);
-        printOrder.push_back(28);
-        printOrder.push_back(12);
-        printOrder.push_back(30);
-        printOrder.push_back(31);
-        printOrder.push_back(32);
-        printOrder.push_back(33);
-        printOrder.push_back(34);
-        printOrder.push_back(35);
-        printOrder.push_back(36);
-
-        clinicTotal = std::vector<double>(37, 0.0);
-        grandTotal = std::vector<double>(37, 0.0);
-        roleTotal = std::vector<double>(37, 0.0);
-        loadHygenists();
-        this->indexDaySheet(daySheet);
-    }
-    void ProdAdjReport();
-};
-
+std::vector<int> ReportGenerator::printOrder;
 
 void ReportGenerator::addToRole(std::vector<double>& toAdd) {
     for(int i = 0; i < toAdd.size(); i++)
@@ -147,12 +47,12 @@ int GetAdjType(const std::string& desc, const std::vector<std::string>& adjTypes
     return 0;
 }
 
-void ReportGenerator::loadHygenists() {
+void ReportGenerator::loadHygienists() {
 
     std::ifstream reader;
-    reader.open(hygenistFile);
+    reader.open(HygienistFile);
     if (!reader.is_open()) {
-        std::cout << "cannot open hygenist file in " << hygenistFile << std::endl;
+        std::cout << "cannot open Hygienist file in " << HygienistFile << std::endl;
         failed = true;
         return;
     }
@@ -161,7 +61,7 @@ void ReportGenerator::loadHygenists() {
     while(!reader.eof()) {
         auto it = hyg.find(curr);
         if(it != hyg.end()) {
-            std::cout << "duplicate name " << curr << " found in hygenist file, treating as identical" << std::endl;
+            std::cout << "duplicate name " << curr << " found in Hygienist file, treating as identical" << std::endl;
         }
         hyg.insert(curr);
         std::getline(reader, curr);
@@ -172,9 +72,19 @@ void ReportGenerator::loadHygenists() {
     reader.close();
 }
 
+bool ReportGenerator::isHygienist(std::string name) {
+    auto it = hyg.find(name);
+    return it != hyg.end() && name.find("PRV") == name.npos && name.find("SUSPENDED") == name.npos;
+}
+
+bool ReportGenerator::isDoctor(std::string name) {
+    auto it = hyg.find(name);
+    return it == hyg.end() && name.find("PRV") == name.npos && name.find("SUSPENDED") == name.npos;
+}
+
 void ReportGenerator::printHeader(std::fstream& out, std::string& provName) {
     out << "," << provName << ",,,Production Adjustments,";
-    for(int k = 1; k < printOrder.size(); k++) {
+    for(int k = 1; k < ReportGenerator::printOrder.size(); k++) {
         //out << '\'' << adjTypes[k] << '\'' <<  ',';
         out << ',';
         if(k == 8)
@@ -184,9 +94,9 @@ void ReportGenerator::printHeader(std::fstream& out, std::string& provName) {
     }
     
     out << "\n,,,";
-    for(int k = 0; k < printOrder.size(); k++) {
+    for(int k = 0; k < ReportGenerator::printOrder.size(); k++) {
         //out << '\'' << adjTypes[k] << '\'' <<  ',';
-        out << ' ' << adjTypes[printOrder[k]] << ',';
+        out << ' ' << adjTypes[ReportGenerator::printOrder[k]] << ',';
         if(k == 8 || k == 29)
             out << ',';
     }
@@ -197,7 +107,9 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
 
     //set up file reader
     std::ifstream reader;
+    //std::ofstream check;
     reader.open(daySheet);
+    //check.open("outputtest.csv");
     if (!reader.is_open()) {
         //file existence error
         std::cout << "cannot open file " << daySheet << std::endl;
@@ -207,9 +119,10 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
     std::string temp;
     std::string line;
     std::getline(reader, line);
+    int linecount = 1;
     while(!reader.eof()) { //loop while hasn't hit eof
         Procedure *current = GenerateProcedure();
-        
+        //std::cout << linecount++ << std::endl;
         std::stringstream s(line);
         std::string data;
         //skip to head of data
@@ -239,7 +152,7 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
         current->adjType = GetAdjType(data, adjTypes);
 
         //charges/credits
-        std::getline(s, data, '\"'); //skip to quote
+        /*std::getline(s, data, '\"'); //skip to quote
         bool charge = data.empty();
         std::getline(s, data, '\"'); //get numbers between quotes
         if(data[0] == '{')
@@ -250,6 +163,41 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
             s.ignore(2);
         else 
             s.ignore(1);
+        */
+
+        std::getline(s, data, ','); //read to first comma
+        //std::cout << "data: " << data << "end data" << std::endl;
+        if (data[0] == '\"' && data[data.length() - 1] != '\"') {
+            std::string temp = data;
+            std::getline(s, data, ',');
+            data = temp + data;
+        }
+
+        bool charge = data.length() != 0;
+        if(!charge) { //if first is empty
+            std::getline(s, data, ',');
+            if (data[0] == '\"' && data[data.length() - 1] != '\"') {
+                std::string temp = data;
+                std::getline(s, data, ',');
+                data = temp + data;
+            }
+        }
+        if(data[0] == '\"') //remove quotes
+            data = data.substr(1, data.length() - 2);
+
+        if(data[0] == '{') //remove {} which can occur
+            data = data.substr(5, data.length()-5);
+
+        
+
+        data.erase(std::remove(data.begin(), data.end(), ','), data.end());
+
+        current->amt = std::stod(data);
+        //check << current->amt << ",\n";
+        if(charge)
+            std::getline(s, data, ',');
+
+        //std::cout << "amt: " << current->amt << "endamt" << std::endl;
 
         //BT
         std::getline(s, data, ',');
@@ -268,7 +216,7 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
 
         //chart
         std::getline(s, data, ',');
-        current->chartNum = data.substr(1, data.length() - 2);
+        current->chartNum = data.length() == 0 ? "-1" : data.substr(1, data.length() - 2);
 
         //pri provider
         std::getline(s, data, ',');
@@ -286,6 +234,32 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
         std::getline(reader, line);
     }
     reader.close();
+    //check.close();
+}
+
+void ReportGenerator::indexProcedures() {
+    //add procedures
+    for (int i = 0; i < procs.size(); i++) {
+        auto it = clinics.find(procs[i]->clinic);
+        if(it == clinics.end()) {
+            clinics[procs[i]->clinic] = CreateClinic(procs[i]->clinic);
+        }
+        auto it2 = prov.find(procs[i]->priProvider);
+        if(it2 == prov.end()) {
+            prov[procs[i]->priProvider] = CreateProvider(procs[i]->priProvider);
+            AddProvider(clinics[procs[i]->clinic], prov[procs[i]->priProvider]);
+        }
+        AddProc(prov[procs[i]->priProvider], i);
+        
+    }
+
+    for (auto it = clinics.begin(); it != clinics.end(); ++it) {
+        Clinic* c = it->second;
+        for (int i = 0; i < c->providers.size(); i++) {
+            sumProcs(c->providers[i]);
+        }
+        sumRoles(c);
+    }
 }
 
 void ReportGenerator::printGrandSummary() {
@@ -297,327 +271,678 @@ void ReportGenerator::printGrandSummary() {
     double prodTotal = 0.0;
     double payTotal = 0.0;
     double collAdj = 0.0;
-    output << ",,,";
+    output << std::setprecision(15) << ",,,";
     for(int k = 0; k < grandTotal.size(); k++) {
-        output << grandTotal[printOrder[k]] << ',';
+        output << std::setprecision(15) << grandTotal[ReportGenerator::printOrder[k]] << ',';
         if(k < 9)
-            prodTotal += grandTotal[printOrder[k]];
+            prodTotal += grandTotal[ReportGenerator::printOrder[k]];
         else if (k < 30) 
-            collAdj += grandTotal[printOrder[k]];
+            collAdj += grandTotal[ReportGenerator::printOrder[k]];
         else
-            payTotal += grandTotal[printOrder[k]];
+            payTotal += grandTotal[ReportGenerator::printOrder[k]];
         if(k == 8 || k == 29)
-            output << ',';
+            output << std::setprecision(15) << ',';
     }
 
-    prodAdj = prodTotal - grandTotal[printOrder[0]];
+    prodAdj = prodTotal - grandTotal[ReportGenerator::printOrder[0]];
 
-    output << "\n\n\nProduction Adjustments Grand Total," << prodAdj << "\n";
-    output << "Production Grand Total," << prodTotal << ",\n";
-    output << "Payment Grand Total," << payTotal << ",\n";
-    output << "Collections Adjustment Grand Total," << collAdj << ",";
+    output << std::setprecision(15) << "\n\n\nProduction Adjustments Grand Total," << prodAdj << "\n";
+    output << std::setprecision(15) << "Production Grand Total," << prodTotal << ",\n";
+    output << std::setprecision(15) << "Payment Grand Total," << payTotal << ",\n";
+    output << std::setprecision(15) << "Collections Adjustment Grand Total," << collAdj << ",";
     output.close();
 }
 
-void ReportGenerator::ProdAdjReport() {
-    
-    for (int i = 0; i < procs.size(); i++) {
-        
-        auto it = prov.find(procs[i]->priProvider);
-        if(it == prov.end()) {
-            clinics[procs[i]->clinic].push_back(procs[i]->priProvider);
-        }
-        prov[procs[i]->priProvider].push_back(i);
+void ReportGenerator::sumProcs(Provider *p) {
+    for (int j = 0; j < p->procKeys.size(); j++){
+        int index = GetProc(p, j);
+        Procedure* proc = procs[index];
+        //if ((proc->amt >= 0 && proc->adjType == 0) || proc->adjType != 0)
+            AddToCol(p, proc->adjType, proc->amt);
     }
-    std::fstream output;
-    std::vector<double> totals = std::vector<double>(37, 0.0);
-    std::string name;
-    int counter = 0;
-    for(std::unordered_map<std::string, std::vector<std::string> >::iterator it = clinics.begin(); 
-        it != clinics.end(); ++it) {
-        output.open(it->first + "summary.csv");
-        output << it->first << " Doctor Production,\n\n";
-        
-        double roleProdSubtotal = 0.0;
-        double rolePaySubtotal = 0.0;
-        double roleCollecSubtotal = 0.0;
-        double roleProdAdjSubtotal = 0.0;
+}
 
-        double clinicProdSubtotal = 0.0;
-        double clinicPaySubtotal = 0.0;
-        double clinicCollecSubtotal = 0.0;
-        double clinicProdAdjSubtotal = 0.0;
-
-        for(int i = 0; i < it->second.size(); i++) {
-            std::string currProv = it->second[i];
-            //skip hygenists && suspended
-            if(hyg.find(currProv) != hyg.end() || currProv.find("SUSPENDED CREDITS") != currProv.npos 
-                || currProv.find("PRV") != currProv.npos)
-                continue;
-
-            //Add each procedure to category total
-            for(int j = 0; j < prov[currProv].size(); j++) {
-                int index = prov[currProv][j];
-                if((procs[index]->amt >= 0 && procs[index]->adjType == 0) || procs[index]->adjType != 0)
-                    totals[procs[index]->adjType] += procs[index]->amt;
-            }
-            addToRole(totals);
-            //print production
-            printHeader(output, currProv);
-            double subtotal = 0.0;
-            double prod = 0.0;
-            double collecAdj = 0.0;
-            double prodAdj = 0.0;
-            double gross = totals[printOrder[0]];
-            output << ",,,";
-            for(int k = 0; k < 30; k++) {
-                output << totals[printOrder[k]] << ',';
-                if(k <=8)
-                    subtotal += totals[printOrder[k]];
-                else
-                    collecAdj += totals[printOrder[k]];
-                totals[printOrder[k]] = 0.0;
-                if(k == 8 || k == 29)
-                    output << ',';
-            }
-            prod = subtotal;
-            prodAdj = subtotal - gross;
-            subtotal = 0.0;
-
-            for(int k = 30; k < adjTypes.size(); k++) {
-                output << totals[printOrder[k]] << ',';
-                subtotal += totals[printOrder[k]];
-                totals[printOrder[k]] = 0.0;
-            }
-
-            output << "\n\n,,Production Adjustments subtotal," << prodAdj << ",\n";
-            output << ",,Net Production subtotal," << prod << ",\n";
-            output << ",,Payments subtotal," << subtotal << ",\n";
-            output << ",,Collections Adjustments subtotal," << collecAdj << ",\n\n";
-
-            roleProdSubtotal += prod;
-            rolePaySubtotal += subtotal;
-            roleCollecSubtotal += collecAdj;
-            roleProdAdjSubtotal += prodAdj;
-        } //doctor for
-
-        name = "Doctor Totals";
-        printHeader(output, name);
-        output << ",,,";
-        for(int k = 0; k < roleTotal.size(); k++) {
-            output << roleTotal[printOrder[k]] << ',';
-            if(k == 8 || k == 29)
-                output << ',';
+void ReportGenerator::sumRoles(Clinic *c) {
+    for (int i = 0; i < c->providers.size(); i++) {
+        std::string name = c->providers[i]->name;
+        std::vector<double>* addInto;
+        if(isHygienist(name)) {
+            addInto = &c->HygienistTotals; 
         }
-
-        output << "\n\n,,Doctor Production Adjustment Subtotal," << roleProdAdjSubtotal << ",\n";
-        output << ",,Doctor Net Production Subtotal," << roleProdSubtotal << ",\n";
-        output << ",,Doctor Payments Subtotal," << rolePaySubtotal << ",\n";
-        output << ",,Doctor Collections Adjustment Subtotal," << roleCollecSubtotal << ",\n\n\n";
-
-        clinicPaySubtotal += rolePaySubtotal;
-        clinicProdSubtotal += roleProdSubtotal;
-        clinicCollecSubtotal += roleCollecSubtotal;
-        clinicProdAdjSubtotal += roleProdAdjSubtotal;
-
-        rolePaySubtotal = 0.0;
-        roleProdSubtotal = 0.0;
-        roleCollecSubtotal = 0.0;
-        roleProdAdjSubtotal = 0.0;
-
-        addRoleToClinic();
-
-        output << it->first << " Hygiene Production,\n\n";
-        for(int i = 0; i < it->second.size(); i++) {
-            std::string currProv = it->second[i];
-            //skip doctors && suspended
-            if(hyg.find(currProv) == hyg.end() || currProv.find("SUSPENDED CREDITS") != currProv.npos
-                || currProv.find("PRV") != currProv.npos) 
-                continue;
-            //Add each procedure to category total
-            for(int j = 0; j < prov[currProv].size(); j++) {
-                int index = prov[currProv][j];
-                if((procs[index]->amt >= 0 && procs[index]->adjType == 0) || procs[index]->adjType != 0)
-                    totals[procs[index]->adjType] += procs[index]->amt;
-            }
-            addToRole(totals);
-            //print production
-            printHeader(output, currProv);
-            double subtotal = 0.0;
-            double prod = 0.0;
-            double collecAdj = 0.0;
-            double prodAdj = 0.0;
-            double gross = totals[printOrder[0]];
-            output << ",,,";
-            for(int k = 0; k < 30; k++) {
-                output << totals[printOrder[k]] << ',';
-                if(k <=8)
-                    subtotal += totals[printOrder[k]];
-                else
-                    collecAdj += totals[printOrder[k]];
-                totals[printOrder[k]] = 0.0;
-                if(k == 8 || k == 29)
-                    output << ',';
-            }
-            prod = subtotal;
-            prodAdj = subtotal - gross;
-            subtotal = 0.0;
-
-            for(int k = 30; k < adjTypes.size(); k++) {
-                output << totals[printOrder[k]] << ',';
-                subtotal += totals[printOrder[k]];
-                totals[printOrder[k]] = 0.0;
-            }
-
-            output << "\n\n,,Production Adjustments subtotal," << prodAdj << ",\n";
-            output << ",,Net Production subtotal," << prod << ",\n";
-            output << ",,Payments subtotal," << subtotal << ",\n";
-            output << ",,Collections Adjustments subtotal," << collecAdj << ",\n\n";
-
-            roleProdSubtotal += prod;
-            rolePaySubtotal += subtotal;
-            roleCollecSubtotal += collecAdj;
-            roleProdAdjSubtotal += prodAdj;
-        } //hygiene for
-        name = "Hygiene Totals";
-        printHeader(output, name);
-        output << ",,,";
-        for(int k = 0; k < roleTotal.size(); k++) {
-            output << roleTotal[printOrder[k]] << ',';
-            if(k == 8 || k == 29)
-                output << ',';
+        else if (isDoctor(name)) {
+            addInto = &c->doctorTotals; 
+            //std::cout << "doctor" << name << c->name << "\t\n";
         }
-
-        output << "\n\n,,Hygiene Production Adjustment Subtotal," << roleProdAdjSubtotal << ",\n";
-        output << ",,Hygiene Net Production Subtotal," << roleProdSubtotal << ",\n";
-        output << ",,Hygiene Payments Subtotal," << rolePaySubtotal << ",\n";
-        output << ",,Hygiene Collections Adjustment Subtotal," << roleCollecSubtotal << ",\n";
-
-        clinicPaySubtotal += rolePaySubtotal;
-        clinicProdSubtotal += roleProdSubtotal;
-        clinicCollecSubtotal += roleCollecSubtotal;
-        clinicProdAdjSubtotal += roleProdAdjSubtotal;
-
-        double subtotal = 0.0;
-        double prod = 0.0;
-        double pay = 0.0;
-        double collecAdj = 0.0;
-        double prodAdj = 0.0;
-
-        addRoleToClinic();
-
-        output << "\n\nSpecial\n\n";
-        std::string provName = it->first + " SUSPENDED CREDITS";
-        printHeader(output, provName);
-        auto iter = prov.find(provName);
-        if(iter != prov.end()) {
-            for(int j = 0; j < prov[provName].size(); j++) {
-                int index = prov[provName][j];
-                if((procs[index]->amt >= 0 && procs[index]->adjType == 0) || procs[index]->adjType != 0)
-                    totals[procs[index]->adjType] += procs[index]->amt;
-            }
+        else {
+            addInto = &c->otherTotals; 
         }
-        addToRole(totals);
-        double gross = totals[printOrder[0]];
-        output << ",,,";
-        for(int k = 0; k < adjTypes.size(); k++) {
-            output << totals[printOrder[k]] << ',';
-            if (k <=8)
-                prod += totals[printOrder[k]];
-            else if (k < 30)
-                collecAdj += totals[printOrder[k]];
-            else
-                pay += totals[printOrder[k]];
-            totals[printOrder[k]] = 0.0;
-            if(k == 8 || k == 29)
-                output << ',';
+        for(int j = 0; j < 37; j++) {
+            
+            (*addInto)[j] += c->providers[i]->totals[j];
         }
+    }
 
-        prodAdj = prod - gross;
-
-        output << "\n\n,,Production Adjustments subtotal," << prodAdj << ",\n";
-        output << ",,Net Production subtotal," << prod << ",\n";
-        output << ",,Payments subtotal," << pay << ",\n";
-        output << ",,Collections Adjustment subtotal," << collecAdj << ",\n\n";
-
-        clinicPaySubtotal += pay;
-        clinicProdSubtotal += prod;
-        clinicCollecSubtotal += collecAdj;
-        clinicProdAdjSubtotal += prodAdj;
-
-        pay = 0.0;
-        prod = 0.0;
-        collecAdj = 0.0;
-
-        output << "\n\n";
-        provName = it->first + "PRV";
-        printHeader(output, provName);
-        iter = prov.find(provName);
-        if(iter != prov.end()) {
-            for(int j = 0; j < prov[provName].size(); j++) {
-                int index = prov[provName][j];
-                if((procs[index]->amt >= 0 && procs[index]->adjType == 0) || procs[index]->adjType != 0)
-                    totals[procs[index]->adjType] += procs[index]->amt;
-            }
-        }
-        addToRole(totals);
-        gross = totals[printOrder[0]];
-        output << ",,,";
-        for(int k = 0; k < adjTypes.size(); k++) {
-            output << totals[printOrder[k]] << ',';
-            if (k <=8)
-                prod += totals[printOrder[k]];
-            else if (k < 30)
-                collecAdj += totals[printOrder[k]];
-            else
-                pay += totals[printOrder[k]];
-            totals[printOrder[k]] = 0.0;
-            if(k == 8 || k == 29)
-                output << ',';
-        }
-
-        prodAdj = prod - gross;
-        output << "\n\n,,Production Adjustments subtotal," << prodAdj << ",\n";
-        output << ",,Net Production subtotal," << prod << ",\n";
-        output << ",,Payments subtotal," << pay << ",\n";
-        output << ",,Collections Adjustment subtotal," << collecAdj << ",\n\n";
-
-        clinicPaySubtotal += pay;
-        clinicProdSubtotal += prod;
-        clinicCollecSubtotal += collecAdj;
-        clinicProdAdjSubtotal += prodAdj;
-        
-        addRoleToClinic();
-
-        //Print grand total for clinic
-        output << "\n\n\n\n";
-        provName = "CLINIC GRAND TOTAL";
-        printHeader(output, provName);
-        output << ",,,";
-        for(int k = 0; k < adjTypes.size(); k++) {
-            output << clinicTotal[printOrder[k]] << ',';
-            if (k <=8)
-                prod += clinicTotal[printOrder[k]];
-            if (k < 30)
-                collecAdj += clinicTotal[printOrder[k]];
-            else
-                pay += clinicTotal[printOrder[k]];
-            if(k == 8 || k == 29)
-                output << ',';
-        }
-
-        output << "\n\n\nProduction Adjustments Grand Total for " << it->first << "," << clinicProdAdjSubtotal << "\n";
-        output << "Net Production Grand Total for " << it->first << "," << clinicProdSubtotal << ",\n";
-        output << "Payment Grand Total for " << it->first << "," << clinicPaySubtotal << ",\n";
-        output << "Collections Adjustment Grand Total for " << it->first << "," << clinicCollecSubtotal << ",";
-        addClinicToGrand();
-        output.close();
-
-    } // clinic for
-    printGrandSummary();
+    //std::cout << "total" << c->name << c->doctorTotals[0] << std::endl;
 }
 
 
+void ReportGenerator::ProdAdjReport() {
+    
+    std::fstream output;
+
+    //production adjustments
+    output.open("ProductionAdjustmentSummary.csv");
+    
+    //header
+    output << std::setprecision(15) << "Clinic,Group,Provider,";
+    for(int i = 0; i < 9; i++) {
+        output << std::setprecision(15) << "\" " << adjTypes[ReportGenerator::printOrder[i]] << '\"' << ',';
+    }
+    output << std::setprecision(15) << "Total Production Adjustments, Net Production,\n\n";
+    std::vector<double> grandTotal = std::vector<double>(37, 0.0);
+    double grandTotalProdAdj = 0.0;
+    double grandTotalNetProd = 0.0;
+    for (auto it = clinics.begin(); it != clinics.end(); ++it) {
+
+        output << std::setprecision(15) << it->first << ',';
+        Clinic* currentClinic = it->second;
+
+        //print doctors
+        bool first = true;
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isDoctor(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << "Doctors,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+            output << std::setprecision(15) << currentProv->name << ',';
+            for(int i = 0; i < 9; i++) {
+                output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+            }
+            output << std::setprecision(15) << GetProdAdjSubtotal(currentProv) << ',';
+            output << std::setprecision(15) << GetNetProduction(currentProv) << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        output << std::setprecision(15) << ",,Doctors Total" << ',';
+        for(int i = 0; i < 9; i++) {
+            output << std::setprecision(15) << currentClinic->doctorTotals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetRoleTotalProdAdj(currentClinic, 0) << ',';
+        output << std::setprecision(15) << GetRoleNetProd(currentClinic, 0) << ',';
+
+        output << std::setprecision(15) << "\n\n";
+        first = true;
+
+
+        //print Hygienists
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isHygienist(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << ",Hygienists,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+            output << std::setprecision(15) << currentProv->name << ',';
+            for(int i = 0; i < 9; i++) {
+                output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+            }
+            output << std::setprecision(15) << GetProdAdjSubtotal(currentProv) << ',';
+            output << std::setprecision(15) << GetNetProduction(currentProv) << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        output << std::setprecision(15) << ",,Hygienists Total" << ',';
+        for(int i = 0; i < 9; i++) {
+            output << std::setprecision(15) << currentClinic->HygienistTotals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetRoleTotalProdAdj(currentClinic, 1) << ',';
+        output << std::setprecision(15) << GetRoleNetProd(currentClinic, 1) << ',';
+        output << std::setprecision(15) << "\n";
+
+        output << std::setprecision(15) << ",,Doctors + Hygienists Total,";
+        for(int i = 0; i < 9; i++) {
+            int index = ReportGenerator::printOrder[i];
+            output << std::setprecision(15) << (currentClinic->HygienistTotals[index] + currentClinic->doctorTotals[index]) << ',';
+        }
+        output << std::setprecision(15) << (GetRoleTotalProdAdj(currentClinic, 1) + GetRoleTotalProdAdj(currentClinic, 0)) << ',';
+        output << std::setprecision(15) << (GetRoleNetProd(currentClinic, 1) + GetRoleNetProd(currentClinic, 0)) << ',';
+        output << std::setprecision(15) << "\n\n";
+
+
+        //print others
+        output << std::setprecision(15) << ",Others,";
+        Provider* currentProv;
+
+        //suspended
+        std::string name = it->first + " SUSPENDED CREDITS";
+        output << std::setprecision(15) << name << ',';
+        auto it2 = prov.find(name);
+        if (it2 != prov.end()) 
+            currentProv = it2->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        for(int i = 0; i < 9; i++) {
+            output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetProdAdjSubtotal(currentProv) << ',';
+        output << std::setprecision(15) << GetNetProduction(currentProv) << ',';
+        output << std::setprecision(15) << '\n';
+        //PRV
+        name = it->first + "PRV";
+        if(strncmp("CPD", it->first.c_str(), 3) == 0)
+            name = "PEDOPRV";
+        output << std::setprecision(15) << ",," << name << ',';
+        auto it3 = prov.find(name);
+        if (it3 != prov.end()) 
+            currentProv = it3->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        for(int i = 0; i < 9; i++) {
+            output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetProdAdjSubtotal(currentProv) << ',';
+        output << std::setprecision(15) << GetNetProduction(currentProv) << ',';
+        output << std::setprecision(15) << "\n";
+
+        output << std::setprecision(15) << ",,Clinic Total,";
+        double amt;
+        for(int i = 0; i < 9; i++) {
+            int index = ReportGenerator::printOrder[i];
+            
+            amt = (currentClinic->otherTotals[index] + currentClinic->HygienistTotals[index] + 
+                currentClinic->doctorTotals[index]);
+            output << std::setprecision(15) << amt << ',';
+            grandTotal[index] += amt;
+        }
+        amt = (GetRoleTotalProdAdj(currentClinic, 2) + GetRoleTotalProdAdj(currentClinic, 1) + 
+            GetRoleTotalProdAdj(currentClinic, 0));
+        grandTotalProdAdj += amt;
+        output << std::setprecision(15) << amt << ',';
+
+        amt = (GetRoleNetProd(currentClinic, 2) + GetRoleNetProd(currentClinic, 1) + 
+            GetRoleNetProd(currentClinic, 0));
+        grandTotalNetProd += amt;
+        output << std::setprecision(15) << amt << ',';
+        output << std::setprecision(15) << "\n\n\n";
+    }
+
+    output << std::setprecision(15) << "ALL,,Grand Total,";
+    for(int i = 0; i < 9; i++) {
+        int index = ReportGenerator::printOrder[i];
+        output << std::setprecision(15) << grandTotal[index] << ',';
+    }
+    output << std::setprecision(15) << grandTotalProdAdj << ',';
+    output << std::setprecision(15) << grandTotalNetProd << ',';
+    output << std::setprecision(15) << '\n';
+
+    output.close();
+}
+
+void ReportGenerator::ColAdjReport() {
+    std::fstream output;
+
+    //production adjustments
+    output.open("CollectionAdjustmentSummary.csv");
+    
+    //header
+    output << std::setprecision(15) << "Clinic,Group,Provider,";
+    for(int i = 9; i < 30; i++) {
+        output << std::setprecision(15) << "\" " << adjTypes[ReportGenerator::printOrder[i]] << '\"' << ',';
+    }
+    output << std::setprecision(15) << "Total Collection & Group Adjustments,\n\n";
+    std::vector<double> grandTotal = std::vector<double>(37, 0.0);
+    double grandTotalColAdj = 0.0;
+    for (auto it = clinics.begin(); it != clinics.end(); ++it) {
+
+        output << std::setprecision(15) << it->first << ',';
+        Clinic* currentClinic = it->second;
+
+        //print doctors
+        bool first = true;
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isDoctor(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << "Doctors,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+            output << std::setprecision(15) << currentProv->name << ',';
+            for(int i = 9; i < 30; i++) {
+                output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+            }
+            output << std::setprecision(15) << GetCollecAdjSubtotal(currentProv) << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        output << std::setprecision(15) << ",,Doctors Total" << ',';
+        for(int i = 9; i < 30; i++) {
+            output << std::setprecision(15) << currentClinic->doctorTotals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetRoleColAdj(currentClinic, 0) << ',';
+
+        output << std::setprecision(15) << "\n\n";
+        first = true;
+
+
+        //print Hygienists
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isHygienist(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << ",Hygienists,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+            output << std::setprecision(15) << currentProv->name << ',';
+            for(int i = 9; i < 30; i++) {
+                output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+            }
+            output << std::setprecision(15) << GetCollecAdjSubtotal(currentProv) << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        output << std::setprecision(15) << ",,Hygienists Total" << ',';
+        for(int i = 9; i < 30; i++) {
+            output << std::setprecision(15) << currentClinic->HygienistTotals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetRoleColAdj(currentClinic, 1) << ',';
+        output << std::setprecision(15) << "\n";
+
+        output << std::setprecision(15) << ",,Doctors + Hygienists Total,";
+        for(int i = 9; i < 30; i++) {
+            int index = ReportGenerator::printOrder[i];
+            output << std::setprecision(15) << (currentClinic->HygienistTotals[index] + currentClinic->doctorTotals[index]) << ',';
+        }
+        output << std::setprecision(15) << (GetRoleColAdj(currentClinic, 1) + GetRoleColAdj(currentClinic, 0)) << ',';
+        output << std::setprecision(15) << "\n\n";
+
+
+        //print others
+        output << std::setprecision(15) << ",Others,";
+        Provider* currentProv;
+
+        //suspended
+        std::string name = it->first + " SUSPENDED CREDITS";
+        output << std::setprecision(15) << name << ',';
+        auto it2 = prov.find(name);
+        if (it2 != prov.end()) 
+            currentProv = it2->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        for(int i = 9; i < 30; i++) {
+            output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetCollecAdjSubtotal(currentProv) << ',';
+        output << std::setprecision(15) << '\n';
+        //PRV
+        name = it->first + "PRV";
+        if(strncmp("CPD", it->first.c_str(), 3) == 0)
+            name = "PEDOPRV";
+        output << std::setprecision(15) << ",," << name << ',';
+        auto it3 = prov.find(name);
+        if (it3 != prov.end()) 
+            currentProv = it3->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        for(int i = 9; i < 30; i++) {
+            output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetCollecAdjSubtotal(currentProv) << ',';
+        output << std::setprecision(15) << "\n";
+
+        output << std::setprecision(15) << ",,Clinic Total,";
+        double amt;
+        for(int i = 9; i < 30; i++) {
+            int index = ReportGenerator::printOrder[i];
+            amt = (currentClinic->otherTotals[index] + currentClinic->HygienistTotals[index] + 
+                currentClinic->doctorTotals[index]);
+            output << std::setprecision(15) << amt << ',';
+            grandTotal[index] += amt;
+        }
+        
+
+        amt = (GetRoleColAdj(currentClinic, 2) + GetRoleColAdj(currentClinic, 1) + 
+            GetRoleColAdj(currentClinic, 0));
+        grandTotalColAdj += amt;
+        output << std::setprecision(15) << amt << ',';
+        output << std::setprecision(15) << "\n\n\n";
+    }
+
+    output << std::setprecision(15) << "ALL,,Grand Total,";
+    for(int i = 9; i < 30; i++) {
+        int index = ReportGenerator::printOrder[i];
+        output << std::setprecision(15) << grandTotal[index] << ',';
+    }
+    output << std::setprecision(15) << grandTotalColAdj << ',';
+    output << std::setprecision(15) << '\n';
+
+    output.close();
+}
+
+void ReportGenerator::PaymentReport() {
+    std::fstream output;
+
+    output.open("PaymentSummary.csv");
+    
+    //header
+    output << std::setprecision(15) << "Clinic,Group,Provider,";
+    for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+        output << std::setprecision(15) << "\" " << adjTypes[ReportGenerator::printOrder[i]] << '\"' << ',';
+    }
+    output << std::setprecision(15) << "Total Payments,\n\n";
+    std::vector<double> grandTotal = std::vector<double>(37, 0.0);
+    double grandTotalPayments = 0.0;
+    for (auto it = clinics.begin(); it != clinics.end(); ++it) {
+
+        output << std::setprecision(15) << it->first << ',';
+        Clinic* currentClinic = it->second;
+
+        //print doctors
+        bool first = true;
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isDoctor(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << "Doctors,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+            output << std::setprecision(15) << currentProv->name << ',';
+            for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+                output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+            }
+            output << std::setprecision(15) << GetPaySubtotal(currentProv) << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        output << std::setprecision(15) << ",,Doctors Total" << ',';
+        for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+            output << std::setprecision(15) << currentClinic->doctorTotals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetRoleTotalPayments(currentClinic, 0) << ',';
+
+        output << std::setprecision(15) << "\n\n";
+        first = true;
+
+
+        //print Hygienists
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isHygienist(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << ",Hygienists,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+            output << std::setprecision(15) << currentProv->name << ',';
+            for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+                output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+            }
+            output << std::setprecision(15) << GetPaySubtotal(currentProv) << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        output << std::setprecision(15) << ",,Hygienists Total" << ',';
+        for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+            output << std::setprecision(15) << currentClinic->HygienistTotals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetRoleTotalPayments(currentClinic, 1) << ',';
+        output << std::setprecision(15) << "\n";
+
+        output << std::setprecision(15) << ",,Doctors + Hygienists Total,";
+        for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+            int index = ReportGenerator::printOrder[i];
+            output << std::setprecision(15) << (currentClinic->HygienistTotals[index] + currentClinic->doctorTotals[index]) << ',';
+        }
+        output << std::setprecision(15) << (GetRoleTotalPayments(currentClinic, 1) + GetRoleTotalPayments(currentClinic, 0)) << ',';
+        output << std::setprecision(15) << "\n\n";
+
+
+        //print others
+        output << std::setprecision(15) << ",Others,";
+        Provider* currentProv;
+
+        //suspended
+        std::string name = it->first + " SUSPENDED CREDITS";
+        output << std::setprecision(15) << name << ',';
+        auto it2 = prov.find(name);
+        if (it2 != prov.end()) 
+            currentProv = it2->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+            output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetPaySubtotal(currentProv) << ',';
+        output << std::setprecision(15) << '\n';
+        //PRV
+        name = it->first + "PRV";
+        if(strncmp("CPD", it->first.c_str(), 3) == 0)
+            name = "PEDOPRV";
+        output << std::setprecision(15) << ",," << name << ',';
+        auto it3 = prov.find(name);
+        if (it3 != prov.end()) 
+            currentProv = it3->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+            output << std::setprecision(15) << currentProv->totals[ReportGenerator::printOrder[i]] << ',';
+        }
+        output << std::setprecision(15) << GetPaySubtotal(currentProv) << ',';
+        output << std::setprecision(15) << "\n";
+
+        output << std::setprecision(15) << ",,Clinic Total,";
+        double amt;
+        for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+            int index = ReportGenerator::printOrder[i];
+            amt = (currentClinic->otherTotals[index] + currentClinic->HygienistTotals[index] + 
+                currentClinic->doctorTotals[index]);
+            output << std::setprecision(15) << amt << ',';
+            grandTotal[index] += amt;
+        }
+        
+        amt = (GetRoleTotalPayments(currentClinic, 2) + GetRoleTotalPayments(currentClinic, 1) + 
+            GetRoleTotalPayments(currentClinic, 0));
+        grandTotalPayments += amt;
+        output << std::setprecision(15) << amt << ',';
+        output << std::setprecision(15) << "\n\n\n";
+    }
+
+    output << std::setprecision(15) << "ALL,,Grand Total,";
+    for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+        int index = ReportGenerator::printOrder[i];
+        output << std::setprecision(15) << grandTotal[index] << ',';
+    }
+    output << std::setprecision(15) << grandTotalPayments << ',';
+    output << std::setprecision(15) << '\n';
+
+    output.close();
+}
+
+void ReportGenerator::SummaryReport() {
+    std::fstream output;
+    double grandGross = 0.0;
+    double grandTotalProdAdj = 0.0;
+    double grandTotalNetProd = 0.0;
+    double grandTotalPayments = 0.0;
+    double grandTotalColGroupAdj = 0.0;
+    output.open("TotalSummary.csv");
+    output << "Clinic,Group,Provider,Gross Production,Total Production Adjustments,Net Production,Total Payments,Total Collection & Group Adjustments,\n";
+    for (auto it = clinics.begin(); it != clinics.end(); ++it) {
+
+        output << std::setprecision(15) << it->first << ',';
+        Clinic* currentClinic = it->second;
+        double clinicGross = 0.0;
+        double clinicTotalProdAdj = 0.0;
+        double clinicTotalNetProd = 0.0;
+        double clinicTotalPayments = 0.0;
+        double clinicTotalColGroupAdj = 0.0;
+        //print doctors
+        bool first = true;
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isDoctor(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << "Doctors,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+
+            clinicGross += currentProv->totals[0];
+            clinicTotalProdAdj += currentProv->totalProdAdj;
+            clinicTotalNetProd += currentProv->netProd;
+            clinicTotalColGroupAdj += currentProv->totalColAndGroupAdj;
+            clinicTotalPayments += currentProv->totalPayments;
+            output << std::setprecision(15) << currentProv->name << ',';
+            //print
+            output << std::setprecision(15) << currentProv->totals[0] << ',' << currentProv->totalProdAdj << ',' << 
+                currentProv->netProd << ',' << currentProv->totalPayments << ',' << currentProv->totalColAndGroupAdj << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        // output << std::setprecision(15) << ",,Doctors Total" << ',';
+        // for(int i = 30; i < ReportGenerator::printOrder.size(); i++) {
+        //     output << std::setprecision(15) << currentClinic->doctorTotals[ReportGenerator::printOrder[i]] << ','; //change
+        // }
+        // output << std::setprecision(15) << GetRoleTotalPayments(currentClinic, 0) << ',';
+        output << ",,Doctors Total," << currentClinic->doctorTotals[0] << ',' <<  GetRoleTotalProdAdj(currentClinic, 0) <<
+            ',' << GetRoleNetProd(currentClinic, 0) << ',' << GetRoleTotalPayments(currentClinic, 0) << ',' << 
+            GetRoleColAdj(currentClinic, 0);
+        output << std::setprecision(15) << "\n\n";
+        first = true;
+
+
+        //print Hygienists
+        for(int i = 0; i < currentClinic->providers.size(); i++) {
+            Provider* currentProv = currentClinic->providers[i];
+            if (!isHygienist(currentProv->name))
+                continue;
+            if(first) {
+                output << std::setprecision(15) << ",Hygienists,";
+                first = false;
+            }
+            else
+                output << std::setprecision(15) << ",,";
+            output << std::setprecision(15) << currentProv->name << ',';
+            clinicGross += currentProv->totals[0];
+            clinicTotalProdAdj += currentProv->totalProdAdj;
+            clinicTotalNetProd += currentProv->netProd;
+            clinicTotalColGroupAdj += currentProv->totalColAndGroupAdj;
+            clinicTotalPayments += currentProv->totalPayments;
+            //print
+            std::cout << currentProv->name << currentProv->totalProdAdj << "\t" << std::endl;
+            output << std::setprecision(15) << currentProv->totals[0] << ',' << currentProv->totalProdAdj << ',' << 
+                currentProv->netProd << ',' << currentProv->totalPayments << ',' << currentProv->totalColAndGroupAdj << ',';
+            output << std::setprecision(15) << '\n';
+        }
+        output << ",,Hygienists Total," << currentClinic->HygienistTotals[0] << ',' <<  GetRoleTotalProdAdj(currentClinic, 1) <<
+            ',' << GetRoleNetProd(currentClinic, 1) << ',' << GetRoleTotalPayments(currentClinic, 1) << ',' << 
+            GetRoleColAdj(currentClinic, 1);
+        output << std::setprecision(15) << "\n\n";
+
+        output << std::setprecision(15) << ",,Doctors + Hygienists Total,";
+        output << clinicGross << ',' <<  clinicTotalProdAdj << ',' << clinicTotalNetProd << ',' << clinicTotalPayments << ',' << 
+            clinicTotalColGroupAdj;
+        output << std::setprecision(15) << "\n\n";
+
+
+        //print others
+        output << std::setprecision(15) << ",Others,";
+        Provider* currentProv;
+
+        //suspended
+        std::string name = it->first + " SUSPENDED CREDITS";
+        output << std::setprecision(15) << name << ',';
+        auto it2 = prov.find(name);
+        if (it2 != prov.end()) 
+            currentProv = it2->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        clinicGross += currentProv->totals[0];
+        clinicTotalProdAdj += currentProv->totalProdAdj;
+        clinicTotalNetProd += currentProv->netProd;
+        clinicTotalColGroupAdj += currentProv->totalColAndGroupAdj;
+        clinicTotalPayments += currentProv->totalPayments;
+         output << std::setprecision(15) << currentProv->totals[0] << ',' << currentProv->totalProdAdj << ',' << 
+                currentProv->netProd << ',' << currentProv->totalPayments << ',' << currentProv->totalColAndGroupAdj << ',';
+            output << std::setprecision(15) << '\n';
+        //PRV
+        name = it->first + "PRV";
+        if(strncmp("CPD", it->first.c_str(), 3) == 0)
+            name = "PEDOPRV";
+        output << std::setprecision(15) << ",," << name << ',';
+        auto it3 = prov.find(name);
+        if (it3 != prov.end()) 
+            currentProv = it3->second;
+        else {
+            currentProv = CreateProvider(name);
+            prov[name] = currentProv;
+            AddProvider(currentClinic, currentProv);
+        }
+        clinicGross += currentProv->totals[0];
+        clinicTotalProdAdj += currentProv->totalProdAdj;
+        clinicTotalNetProd += currentProv->netProd;
+        clinicTotalColGroupAdj += currentProv->totalColAndGroupAdj;
+        clinicTotalPayments += currentProv->totalPayments;
+         output << std::setprecision(15) << currentProv->totals[0] << ',' << currentProv->totalProdAdj << ',' << 
+                currentProv->netProd << ',' << currentProv->totalPayments << ',' << currentProv->totalColAndGroupAdj << ',';
+            output << std::setprecision(15) << '\n';
+
+        output << std::setprecision(15) << ",,Clinic Total,";
+        output << clinicGross << ',' <<  clinicTotalProdAdj << ',' << clinicTotalNetProd << ',' << clinicTotalPayments << ',' << 
+            clinicTotalColGroupAdj;
+        output << std::setprecision(15) << "\n\n";
+        output << std::setprecision(15) << "\n\n\n";
+        grandTotalProdAdj += clinicTotalProdAdj;
+        grandTotalPayments += clinicTotalPayments;
+        grandTotalNetProd += clinicTotalNetProd;
+        grandTotalColGroupAdj += clinicTotalColGroupAdj;
+        grandGross += clinicGross;
+    }
+    output << std::setprecision(15) << "All,,Grand Total," << grandGross << ',' << grandTotalProdAdj << ',' << 
+        grandTotalNetProd << ',' << grandTotalPayments << ',' << grandTotalColGroupAdj << ",\n";
+    output.close();
+}
+
+void ReportGenerator::AllReports() {
+    ProdAdjReport();
+    ColAdjReport();
+    PaymentReport();
+    SummaryReport();
+}
 
 int main(int argc, char **argv) {
     
@@ -630,6 +955,8 @@ int main(int argc, char **argv) {
     
 
     ReportGenerator rep = ReportGenerator(std::string(argv[1]));
-    rep.ProdAdjReport();
+    rep.AllReports();
     return 0;
 }
+
+#endif
