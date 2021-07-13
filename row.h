@@ -1,10 +1,10 @@
 #ifndef CDG_ROW_H
 #define CDG_ROW_H
 #include <string>
-
+#include <vector>
 struct Procedure {
-    std::string entryDate;
-    std::string procDate;
+    std::vector<int> entryDate;
+    std::vector<int> procDate;
     std::string procDesc;
     std::string patName;
     std::string priProvider;

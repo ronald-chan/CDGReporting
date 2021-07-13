@@ -19,6 +19,12 @@
 
 std::vector<int> ReportGenerator::printOrder;
 
+std::vector<int> ReportGenerator::getDate(std::string date) {
+    std::vector<int> res = std::vector<int>(3, 0);
+    sscanf(date.c_str(), "%d/%d/%d", &res[0], &res[1], &res[2]);
+    return res;
+}
+
 void ReportGenerator::addToRole(std::vector<double>& toAdd) {
     for(int i = 0; i < toAdd.size(); i++)
         roleTotal[i] += toAdd[i];
@@ -36,13 +42,11 @@ void ReportGenerator::addClinicToGrand() {
     clinicTotal = std::vector<double>(37, 0.0);
 }
 
-int GetAdjType(const std::string& desc, const std::vector<std::string>& adjTypes) {
-    for(int i = 1; i < adjTypes.size(); i++) {
-        if(std::strncmp(desc.c_str(), adjTypes[i].c_str(), adjTypes[i].length()) == 0) {
-            //if (i >= 30)
-                //std::cout << "payment matched" << std::endl;
+int ReportGenerator::GetAdjType(std::string& desc) {
+    for(int i = adjTypes.size() - 1; i >= 0; i--) {
+        if(desc.find(adjTypes[i]) != desc.npos)
             return i;
-        }
+        
     }
     return 0;
 }
@@ -70,6 +74,17 @@ void ReportGenerator::loadHygienists() {
     //     std::cout << *it << std::endl;
     // }
     reader.close();
+}
+
+bool ReportGenerator::inRange(std::vector<int> date) {
+    if(date[0] >= startDate[0] && date[0] <= endDate[0]) {
+        if(date[1] >= startDate[1] && date[1] <= endDate[1]) {
+            if(date[2] >= startDate[2] && date[2] <= endDate[2]) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool ReportGenerator::isHygienist(std::string name) {
@@ -104,7 +119,7 @@ void ReportGenerator::printHeader(std::fstream& out, std::string& provName) {
 }
 
 void ReportGenerator::indexDaySheet(std::string daySheet) {
-
+    priorPeriod = false;
     //set up file reader
     std::ifstream reader;
     //std::ofstream check;
@@ -120,22 +135,36 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
     std::string line;
     std::getline(reader, line);
     int linecount = 1;
+    bool first = true;
     while(!reader.eof()) { //loop while hasn't hit eof
         Procedure *current = GenerateProcedure();
         //std::cout << linecount++ << std::endl;
         std::stringstream s(line);
         std::string data;
         //skip to head of data
-        for(int i = 0; i < 22; i++)
+        for(int i = 0; i < 3; i++)
+            std::getline(s, data, ',');
+
+        //get date
+        if(first) {
+            data = data.substr(1, data.length() - 2);
+            startDate = getDate(data.substr(0, data.find(' ')));
+            data = data.substr(data.find(' ') + 3);
+            endDate = getDate(data.substr(0, data.find(' ')));
+
+            first = false;
+        }
+
+        for(int i = 0; i < 20; i++)
             std::getline(s, data, ',');
 
         //entry date
         std::getline(s, data, ',');
-        current->entryDate = data;
+        current->entryDate = getDate(data);
 
         //proc date
         std::getline(s, data, ',');
-        current->procDate = data;
+        current->procDate = getDate(data);
 
         //name
         s.ignore(1); //ignore starting quote
@@ -149,25 +178,12 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
         std::getline(s, data, '\"');
         current->procDesc = data;
         s.ignore(1); //ignore comma
-        current->adjType = GetAdjType(data, adjTypes);
+        current->adjType = GetAdjType(data);
 
         //charges/credits
-        /*std::getline(s, data, '\"'); //skip to quote
-        bool charge = data.empty();
-        std::getline(s, data, '\"'); //get numbers between quotes
-        if(data[0] == '{')
-            data = data.substr(5, data.length()-5);
-        data.erase(std::remove(data.begin(), data.end(), ','), data.end());
-        current->amt = std::stod(data);
-        if(charge)
-            s.ignore(2);
-        else 
-            s.ignore(1);
-        */
-
         std::getline(s, data, ','); //read to first comma
         //std::cout << "data: " << data << "end data" << std::endl;
-        if (data[0] == '\"' && data[data.length() - 1] != '\"') {
+        while (data[0] == '\"' && data[data.length() - 1] != '\"') {
             std::string temp = data;
             std::getline(s, data, ',');
             data = temp + data;
@@ -176,7 +192,7 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
         bool charge = data.length() != 0;
         if(!charge) { //if first is empty
             std::getline(s, data, ',');
-            if (data[0] == '\"' && data[data.length() - 1] != '\"') {
+            while (data[0] == '\"' && data[data.length() - 1] != '\"') {
                 std::string temp = data;
                 std::getline(s, data, ',');
                 data = temp + data;
@@ -234,7 +250,249 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
         std::getline(reader, line);
     }
     reader.close();
-    //check.close();
+    this->indexProcedures();
+}
+
+void ReportGenerator::indexAppPMT(std::string appPMT) {
+    priorPeriod = true;
+    //set up file reader
+    std::ifstream reader;
+    //std::ofstream check;
+    reader.open(appPMT);
+    //check.open("outputtest.csv");
+    if (!reader.is_open()) {
+        //file existence error
+        std::cout << "cannot open file " << appPMT << std::endl;
+        failed = true;
+        return;
+    }
+    std::string temp;
+    std::string line;
+    std::getline(reader, line);
+    int linecount = 1;
+    bool first = true;
+    while(!reader.eof()) { //loop while hasn't hit eof
+        Procedure *current = GenerateProcedure();
+        //std::cout << linecount++ << std::endl;
+        std::stringstream s(line);
+        std::string data;
+        //skip to head of data
+        for(int i = 0; i < 3; i++)
+            std::getline(s, data, ',');
+
+        //get date
+        if(first) {
+            data = data.substr(1, data.length() - 2);
+            startDate = getDate(data.substr(0, data.find(' ')));
+            data = data.substr(data.find(' ') + 3);
+            endDate = getDate(data.substr(0, data.find(' ')));
+            //std::cout << startDate[0] << startDate[1] << startDate[2] 
+            //    << endDate[0] << endDate[1] << endDate[2] << std::endl;
+            first = false;
+        }
+
+        for(int i = 0; i < 19; i++)
+            std::getline(s, data, ',');
+
+        //pri provider
+        std::getline(s, data, ',');
+        data = data.substr(1, data.length()-2);
+        if(data[0] == 'P')
+            current->priProvider = data.substr(10, data.length() - 10);
+        else 
+            current->priProvider = current->clinic + " " + data;
+
+        //desc
+        s.ignore(1); //ignore starting quote
+        std::getline(s, data, '\"');
+        current->procDesc = data;
+        s.ignore(1); //ignore comma
+        current->adjType = GetAdjType(data);
+        std::getline(s, data, ',');
+
+        //entry date
+        std::getline(s, data, ',');
+        current->entryDate = getDate(data);
+        if(inRange(current->entryDate)) {
+            std::getline(reader, line);
+            continue;
+        }
+
+        //proc date
+        std::getline(s, data, ',');
+        current->procDate = getDate(data);
+
+        //name
+        s.ignore(1); //ignore starting quote
+        data.clear();
+        std::getline(s, data, '\"');
+        current->patName = data;
+        s.ignore(1); //ignore comma
+
+        //chart
+        std::getline(s, data, ',');
+        current->chartNum = data.length() == 0 ? "-1" : data.substr(1, data.length() - 2);
+
+        //BT
+        std::getline(s, data, ',');
+        current->BT = std::stoi(data);
+
+        std::getline(s, data, ',');
+
+        //clinic
+        std::getline(s, data, ',');
+        current->clinic = data.substr(1, data.length() - 2);
+
+        //skip op
+        std::getline(s, data, ',');
+
+        //charges
+        std::getline(s, data, ','); //read to first comma
+        while (data[0] == '\"' && data[data.length() - 1] != '\"') {
+            std::string temp = data;
+            std::getline(s, data, ',');
+            data = temp + data;
+        }
+
+        if(data[0] == '\"') //remove quotes
+            data = data.substr(1, data.length() - 2);
+
+        if(data[0] == '{') //remove {} which can occur
+            data = data.substr(5, data.length()-5);
+
+        data.erase(std::remove(data.begin(), data.end(), ','), data.end());
+        current->amt = std::stod(data);
+
+
+        /*std::cout <<  current->procDesc << '\n' 
+            << current->adjType << '\t' << current->amt << '\n'
+            << current->patName << '\n' 
+            << current->priProvider << '\t' << current->clinic << std::endl << std::endl;*/
+        procs.push_back(current);
+        std::getline(reader, line);
+    }
+    reader.close();
+}
+
+void ReportGenerator::indexAppAdj(std::string appAdj) {
+    priorPeriod = true;
+    //set up file reader
+    std::ifstream reader;
+    //std::ofstream check;
+    reader.open(appAdj);
+    //check.open("outputtest.csv");
+    if (!reader.is_open()) {
+        //file existence error
+        std::cout << "cannot open file " << appAdj << std::endl;
+        failed = true;
+        return;
+    }
+    std::string temp;
+    std::string line;
+    std::getline(reader, line);
+    int linecount = 1;
+    bool first = true;
+    while(!reader.eof()) { //loop while hasn't hit eof
+        Procedure *current = GenerateProcedure();
+        //std::cout << linecount++ << std::endl;
+        std::stringstream s(line);
+        std::string data;
+        //skip to head of data
+        for(int i = 0; i < 3; i++)
+            std::getline(s, data, ',');
+
+        //get date
+        if(first) {
+            data = data.substr(1, data.length() - 2);
+            startDate = getDate(data.substr(0, data.find(' ')));
+            data = data.substr(data.find(' ') + 3);
+            endDate = getDate(data.substr(0, data.find(' ')));
+            //std::cout << startDate[0] << startDate[1] << startDate[2] 
+            //    << endDate[0] << endDate[1] << endDate[2] << std::endl;
+            first = false;
+        }
+
+        for(int i = 0; i < 18; i++)
+            std::getline(s, data, ',');
+
+        //pri provider
+        std::getline(s, data, ',');
+        data = data.substr(1, data.length()-2);
+        if(data[0] == 'P')
+            current->priProvider = data.substr(10, data.length() - 10);
+        else 
+            current->priProvider = current->clinic + " " + data;
+
+        //desc
+        s.ignore(1); //ignore starting quote
+        std::getline(s, data, '\"');
+        current->procDesc = data;
+        s.ignore(1); //ignore comma
+        current->adjType = GetAdjType(data);
+
+        //entry date
+        std::getline(s, data, ',');
+        current->entryDate = getDate(data);
+        if(inRange(current->entryDate)) {
+            std::getline(reader, line);
+            continue;
+        }
+
+        //proc date
+        std::getline(s, data, ',');
+        current->procDate = getDate(data);
+
+        //name
+        s.ignore(1); //ignore starting quote
+        data.clear();
+        std::getline(s, data, '\"');
+        current->patName = data;
+        s.ignore(1); //ignore comma
+
+        //chart
+        std::getline(s, data, ',');
+        current->chartNum = data.length() == 0 ? "-1" : data.substr(1, data.length() - 2);
+
+        //BT
+        std::getline(s, data, ',');
+        current->BT = std::stoi(data);
+
+        std::getline(s, data, ',');
+
+        //clinic
+        std::getline(s, data, ',');
+        current->clinic = data.substr(1, data.length() - 2);
+
+        //skip op
+        std::getline(s, data, ',');
+
+        //charges
+        std::getline(s, data, ','); //read to first comma
+        while (data[0] == '\"' && data[data.length() - 1] != '\"') {
+            std::string temp = data;
+            std::getline(s, data, ',');
+            data = temp + data;
+        }
+
+        if(data[0] == '\"') //remove quotes
+            data = data.substr(1, data.length() - 2);
+
+        if(data[0] == '{') //remove {} which can occur
+            data = data.substr(5, data.length()-5);
+
+        data.erase(std::remove(data.begin(), data.end(), ','), data.end());
+        current->amt = std::stod(data);
+        //std::cout << current->amt << std::endl;
+
+
+        /*std::cout <<  current->procDesc << '\n' 
+            << current->adjType << '\t' << current->amt << '\n'
+            << current->patName << '\n' 
+            << current->priProvider << '\t' << current->clinic << std::endl << std::endl;*/
+        procs.push_back(current);
+        std::getline(reader, line);
+    }
+    reader.close();
 }
 
 void ReportGenerator::indexProcedures() {
@@ -245,6 +503,9 @@ void ReportGenerator::indexProcedures() {
             clinics[procs[i]->clinic] = CreateClinic(procs[i]->clinic);
         }
         auto it2 = prov.find(procs[i]->priProvider);
+        // if(priorPeriod && strcmp(procs[i]->priProvider.c_str(), "CDGPRV") == 0) {
+        //     std::cout << "found" << std::endl;
+        // }
         if(it2 == prov.end()) {
             prov[procs[i]->priProvider] = CreateProvider(procs[i]->priProvider);
             AddProvider(clinics[procs[i]->clinic], prov[procs[i]->priProvider]);
@@ -264,7 +525,7 @@ void ReportGenerator::indexProcedures() {
 
 void ReportGenerator::printGrandSummary() {
     std::fstream output;
-    output.open("clinicsummary.csv");
+    output.open(getPrefix() + "clinicsummary.csv");
     std::string prov = "ALL CLINIC SUMMARY";
     printHeader(output, prov);
     double prodAdj = 0.0;
@@ -325,13 +586,11 @@ void ReportGenerator::sumRoles(Clinic *c) {
     //std::cout << "total" << c->name << c->doctorTotals[0] << std::endl;
 }
 
-
 void ReportGenerator::ProdAdjReport() {
     
-    std::fstream output;
+    std::ofstream output(getPrefix() + "ProductionAdjustmentSummary.csv");
 
     //production adjustments
-    output.open("ProductionAdjustmentSummary.csv");
     
     //header
     output << std::setprecision(15) << "Clinic,Group,Provider,";
@@ -491,10 +750,9 @@ void ReportGenerator::ProdAdjReport() {
 }
 
 void ReportGenerator::ColAdjReport() {
-    std::fstream output;
+    std::ofstream output(getPrefix() + "CollectionAdjustmentSummary.csv");
 
     //production adjustments
-    output.open("CollectionAdjustmentSummary.csv");
     
     //header
     output << std::setprecision(15) << "Clinic,Group,Provider,";
@@ -641,9 +899,7 @@ void ReportGenerator::ColAdjReport() {
 }
 
 void ReportGenerator::PaymentReport() {
-    std::fstream output;
-
-    output.open("PaymentSummary.csv");
+    std::ofstream output(getPrefix() + "PaymentSummary.csv");
     
     //header
     output << std::setprecision(15) << "Clinic,Group,Provider,";
@@ -789,13 +1045,12 @@ void ReportGenerator::PaymentReport() {
 }
 
 void ReportGenerator::SummaryReport() {
-    std::fstream output;
+    std::ofstream output(getPrefix() + "TotalSummary.csv");
     double grandGross = 0.0;
     double grandTotalProdAdj = 0.0;
     double grandTotalNetProd = 0.0;
     double grandTotalPayments = 0.0;
     double grandTotalColGroupAdj = 0.0;
-    output.open("TotalSummary.csv");
     output << "Clinic,Group,Provider,Gross Production,Total Production Adjustments,Net Production,Total Payments,Total Collection & Group Adjustments,\n";
     for (auto it = clinics.begin(); it != clinics.end(); ++it) {
 
@@ -860,7 +1115,7 @@ void ReportGenerator::SummaryReport() {
             clinicTotalColGroupAdj += currentProv->totalColAndGroupAdj;
             clinicTotalPayments += currentProv->totalPayments;
             //print
-            std::cout << currentProv->name << currentProv->totalProdAdj << "\t" << std::endl;
+            //std::cout << currentProv->name << currentProv->totalProdAdj << "\t" << std::endl;
             output << std::setprecision(15) << currentProv->totals[0] << ',' << currentProv->totalProdAdj << ',' << 
                 currentProv->netProd << ',' << currentProv->totalPayments << ',' << currentProv->totalColAndGroupAdj << ',';
             output << std::setprecision(15) << '\n';
@@ -944,9 +1199,15 @@ void ReportGenerator::AllReports() {
     SummaryReport();
 }
 
+void ReportGenerator::clearAll() {
+    procs.clear();
+    clinics.clear();
+    prov.clear();
+}
+
 int main(int argc, char **argv) {
     
-    if(argc != 2) {
+    if(argc != 4) {
         //input error, print usage
         std::cout << "wrong num args" << std::endl;
         return 1;
@@ -955,6 +1216,11 @@ int main(int argc, char **argv) {
     
 
     ReportGenerator rep = ReportGenerator(std::string(argv[1]));
+    rep.AllReports();
+    rep.clearAll();
+    rep.indexAppAdj(std::string(argv[2]));
+    rep.indexAppPMT(std::string(argv[3]));
+    rep.indexProcedures();
     rep.AllReports();
     return 0;
 }

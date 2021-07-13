@@ -28,8 +28,24 @@ private:
     std::vector<double> roleTotal;
     
     std::string HygienistFile = "files/Hygienists.csv";
+    std::vector<int> startDate;
+    std::vector<int> endDate;
     bool failed;
+    bool priorPeriod;
 
+    int GetAdjType(std::string& desc);
+    std::string dateToString(std::vector<int> date) {
+        return std::to_string(date[0]) + "." + std::to_string(date[1]) + "." + std::to_string(date[2]);
+    }
+    std::vector<int> getDate(std::string date);
+    std::string getPrefix() {
+        std::string res = dateToString(startDate)+ '-' + dateToString(endDate);
+        if (priorPeriod)
+            res += "Suspended";
+        
+        return res;
+    }
+    bool inRange(std::vector<int> date);
     bool isHygienist(std::string name);
     bool isDoctor(std::string name);
 
@@ -41,14 +57,16 @@ private:
     void addClinicToGrand();
 
     void indexDaySheet(std::string daySheet);
-    void indexProcedures();
+    
     void loadHygienists();
+    void filterByDateRange();
     
     void printHeader(std::fstream& out, std::string& provName);
     void printGrandSummary();
+
 public:
     static std::vector<int> printOrder;
-    ReportGenerator(std::string daySheet): failed(false) {
+    ReportGenerator(std::string daySheet): failed(false), priorPeriod(false) {
         adjTypes.push_back("Gross Production");
         adjTypes.push_back("-Ins Credit Adj");
         adjTypes.push_back("+Ins Debit Adj");
@@ -57,12 +75,12 @@ public:
         adjTypes.push_back("-Other Dr Production Adjustment");
         adjTypes.push_back("-Hygiene Adjustment - Hygienist");
         adjTypes.push_back("-Hygiene Adjustment - Dr.");
-        adjTypes.push_back("-Pre-Conversion Credit Balance"); //8
+        adjTypes.push_back("-Pre-Conversion Credit Balance"); //9
         adjTypes.push_back("-Senior Citizen Courtesy");
         adjTypes.push_back("-Staff Courtesy");
         adjTypes.push_back("-Reverse Finance Charges");
         adjTypes.push_back("+Pre-Conversion Debit Balance"); //12
-        adjTypes.push_back("-Pre-Conversion Credit"); //13
+        adjTypes.push_back("-Pre-Conversion Credit"); //14
         adjTypes.push_back("-Reversal of Bank Fee");
         adjTypes.push_back("+Bank Fee");
         adjTypes.push_back("-Write Off");
@@ -124,19 +142,28 @@ public:
         printOrder.push_back(34);
         printOrder.push_back(35);
         printOrder.push_back(36);
+        
+        startDate = std::vector<int>(3, 0);
+        endDate = std::vector<int>(3, 0);
 
         clinicTotal = std::vector<double>(37, 0.0);
         grandTotal = std::vector<double>(37, 0.0);
         roleTotal = std::vector<double>(37, 0.0);
         loadHygienists();
         this->indexDaySheet(daySheet);
-        this->indexProcedures();
     }
     void ProdAdjReport();
     void ColAdjReport();
     void PaymentReport();
     void SummaryReport();
     void AllReports();
+    void indexAppPMT(std::string appPMT);
+    void indexAppAdj(std::string appAdj);
+
+    void indexProcedures();
+
+    void clearAll();
+
 };
 
 #endif
