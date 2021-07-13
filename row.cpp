@@ -5,6 +5,8 @@
 
 Procedure *GenerateProcedure() {
     Procedure *proc = new Procedure;
+    proc->procDate = std::vector<int>(3, 0);
+    proc->entryDate = std::vector<int>(3, 0);
     return proc;
 }
 
