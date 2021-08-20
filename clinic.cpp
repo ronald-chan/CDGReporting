@@ -7,9 +7,9 @@
 Clinic* CreateClinic(std::string name) {
     Clinic* c = new Clinic;
     c->name = name;
-    c->HygienistTotals = std::vector<double>(37, 0);
-    c->doctorTotals = std::vector<double>(37, 0);
-    c->otherTotals = std::vector<double>(37, 0);
+    c->HygienistTotals = std::vector<double>(ReportGenerator::adjTypes.size(), 0);
+    c->doctorTotals = std::vector<double>(ReportGenerator::adjTypes.size(), 0);
+    c->otherTotals = std::vector<double>(ReportGenerator::adjTypes.size(), 0);
     return c;
 }
 
@@ -27,8 +27,8 @@ double GetRoleTotalProdAdj(Clinic* c, int role) {
         toSum = c->otherTotals;
     
     double total = 0.0;
-    for(int i = 1; i < 9; i++)
-        total += toSum[ReportGenerator::printOrder[i]];
+    for(int i = 1; i < ReportGenerator::numProdAdj + 1; i++)
+        total += toSum[i];
 
     return total;
 }
@@ -43,8 +43,8 @@ double GetRoleNetProd(Clinic* c, int role) {
         toSum = c->otherTotals;
     
     double total = 0.0;
-    for(int i = 0; i < 9; i++)
-        total += toSum[ReportGenerator::printOrder[i]];
+    for(int i = 0; i < ReportGenerator::numProdAdj + 1; i++)
+        total += toSum[i];
 
     return total;
 }
@@ -59,8 +59,10 @@ double GetRoleColAdj(Clinic* c, int role) {
         toSum = c->otherTotals;
     
     double total = 0.0;
-    for(int i = 9; i < 30; i++)
-        total += toSum[ReportGenerator::printOrder[i]];
+    for(int i = ReportGenerator::numProdAdj + 1; 
+        i < ReportGenerator::numProdAdj + ReportGenerator::numColAdj + 1; 
+        i++)
+        total += toSum[i];
 
     return total;
 }
@@ -75,8 +77,10 @@ double GetRoleTotalPayments(Clinic* c, int role) {
         toSum = c->otherTotals;
     
     double total = 0.0;
-    for(int i = 30; i < ReportGenerator::printOrder.size(); i++)
-        total += toSum[ReportGenerator::printOrder[i]];
+    for(int i = ReportGenerator::numProdAdj + ReportGenerator::numColAdj + 1; 
+    i < ReportGenerator::adjTypes.size(); 
+    i++)
+        total += toSum[i];
 
     return total;
 }
