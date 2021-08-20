@@ -1,0 +1,22 @@
+-Ins Credit Adj
++Ins Debit Adj
+-Pre-Conversion Credit Balance
+-Reverse Finance Charges
++Pre-Conversion Debit Balance
+-Pre-Conversion Credit
+-Reversal of Bank Fee
++Bank Fee
+-Write Off
++Payment Transfer From
+-Payment Transfer To
++Patient Refund - Check
++Patient Refund Credit Card
++Insurance Refund
+-Void Refund
++Returned Check
++Pt Initiated Credit Card Charge Back
+-Transfer Balance From
++Transfer Balance To
+-Care Credit Discount
++Pre-Conversion Debit
+huuuuh

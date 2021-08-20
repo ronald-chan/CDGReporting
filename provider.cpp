@@ -7,7 +7,7 @@
 Provider* CreateProvider(std::string name) {
     Provider* p = new Provider;
     p->name = name;
-    p->totals = std::vector<double>(37, 0.0);
+    p->totals = std::vector<double>(ReportGenerator::adjTypes.size(), 0.0);
     p->totalProdAdj = 0;
     p->totalPayments = 0;
     p->totalColAndGroupAdj = 0;
@@ -30,15 +30,15 @@ void AddToCol(Provider* p, int i, double val) {
 double GetNetProduction(Provider* p) {
     if(p->netProd != 0) 
         return p->netProd;
-    p->netProd = p->totals[ReportGenerator::printOrder[0]] + GetProdAdjSubtotal(p);
+    p->netProd = p->totals[0] + GetProdAdjSubtotal(p);
     return p->netProd;
 }
 
 double GetProdAdjSubtotal(Provider* p) {
     if(p->totalProdAdj != 0)
         return p->totalProdAdj;
-    for (int i = 1; i < 9; i++) {
-        p->totalProdAdj += p->totals[ReportGenerator::printOrder[i]];
+    for (int i = 1; i < ReportGenerator::numProdAdj + 1; i++) {
+        p->totalProdAdj += p->totals[i];
     }
     return p->totalProdAdj;
 }
@@ -46,8 +46,8 @@ double GetProdAdjSubtotal(Provider* p) {
 double GetPaySubtotal(Provider* p) {
     if (p->totalPayments != 0)
         return p->totalPayments;
-    for(int i = 30; i < p->totals.size(); i++) {
-        p->totalPayments += p->totals[ReportGenerator::printOrder[i]];
+    for(int i = ReportGenerator::numProdAdj + ReportGenerator::numColAdj + 1; i < p->totals.size(); i++) {
+        p->totalPayments += p->totals[i];
     }
     return p->totalPayments;
 }
@@ -55,8 +55,8 @@ double GetPaySubtotal(Provider* p) {
 double GetCollecAdjSubtotal(Provider* p) {
     if(p->totalColAndGroupAdj != 0) 
         return p->totalColAndGroupAdj;
-    for(int i = 9; i < 30; i++) {
-        p->totalColAndGroupAdj += p->totals[ReportGenerator::printOrder[i]];
+    for(int i = ReportGenerator::numProdAdj + 1; i < ReportGenerator::numProdAdj + ReportGenerator::numColAdj + 1; i++) {
+        p->totalColAndGroupAdj += p->totals[i];
     }
     return p->totalColAndGroupAdj;
 }
