@@ -22,6 +22,11 @@ int ReportGenerator::numProdAdj;
 int ReportGenerator::numColAdj;
 int ReportGenerator::numPaymentTypes;
 std::vector<std::string> ReportGenerator::adjTypes;
+
+bool providerCompare(const Provider * a, const Provider * b) { 
+    return (a->name).compare(b->name) < 0; 
+};
+
 std::vector<int> ReportGenerator::getDate(std::string date) {
     std::vector<int> res = std::vector<int>(3, 0);
     sscanf(date.c_str(), "%d/%d/%d", &res[0], &res[1], &res[2]);
@@ -46,7 +51,7 @@ void ReportGenerator::addClinicToGrand() {
 }
 
 int ReportGenerator::GetAdjType(std::string& desc) {
-    for(int i = adjTypes.size() - 1; i >= 0; i--) {
+    for(int i = 1; i < adjTypes.size() - 1; i++) {
         if(desc.find(adjTypes[i]) != desc.npos)
             return i;
         
@@ -592,9 +597,9 @@ void ReportGenerator::indexProcedures() {
         AddProc(prov[procs[i]->priProvider], i);
         
     }
-
     for (auto it = clinics.begin(); it != clinics.end(); ++it) {
         Clinic* c = it->second;
+        std::sort(c->providers.begin(), c->providers.end(), providerCompare);
         for (int i = 0; i < c->providers.size(); i++) {
             sumProcs(c->providers[i]);
         }
@@ -768,7 +773,7 @@ void ReportGenerator::ProdAdjReport() {
             prov[name] = currentProv;
             AddProvider(currentClinic, currentProv);
         }
-        for(int i = 0; i < numProdAdj; i++) {
+        for(int i = 0; i < numProdAdj + 1; i++) {
             output << std::setprecision(15) << currentProv->totals[i] << ',';
         }
         output << std::setprecision(15) << GetProdAdjSubtotal(currentProv) << ',';
@@ -967,7 +972,7 @@ void ReportGenerator::ColAdjReport() {
     }
 
     output << std::setprecision(15) << "ALL,,Grand Total,";
-    for(int i = numProdAdj + 1; i < 30; i++) {
+    for(int i = numProdAdj + 1; i < numProdAdj + numColAdj + 1; i++) {
         int index = i;
         output << std::setprecision(15) << grandTotal[index] << ',';
     }

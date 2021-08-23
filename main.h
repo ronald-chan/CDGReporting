@@ -37,6 +37,7 @@ private:
     bool priorPeriod;
 
     int GetAdjType(std::string& desc);
+
     std::string dateToString(std::vector<int> date) {
         return std::to_string(date[0]) + "." + std::to_string(date[1]) + "." + std::to_string(date[2]);
     }
@@ -79,6 +80,7 @@ public:
     static int numColAdj;
     static int numPaymentTypes;
     static std::vector<std::string> adjTypes;
+
     ReportGenerator(std::string daySheet): failed(false), priorPeriod(false) {
         adjTypes.push_back("Gross Production");
         loadColumns();
