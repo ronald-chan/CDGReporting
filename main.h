@@ -80,7 +80,7 @@ public:
     static int numColAdj;
     static int numPaymentTypes;
     static std::vector<std::string> adjTypes;
-
+  
     ReportGenerator(std::string daySheet): failed(false), priorPeriod(false) {
         adjTypes.push_back("Gross Production");
         loadColumns();
