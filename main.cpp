@@ -51,7 +51,7 @@ void ReportGenerator::addClinicToGrand() {
 }
 
 int ReportGenerator::GetAdjType(std::string& desc) {
-    for(int i = 1; i < adjTypes.size() - 1; i++) {
+    for(int i = 1; i < adjTypes.size(); i++) {
         if(desc.find(adjTypes[i]) != desc.npos)
             return i;
         
