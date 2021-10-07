@@ -298,7 +298,7 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
         
 
         data.erase(std::remove(data.begin(), data.end(), ','), data.end());
-        std::cout << linecount << "\t" << data << std::endl;
+        //std::cout << linecount << "\t" << data << std::endl;
         current->amt = std::stod(data);
         //check << current->amt << ",\n";
         if(charge)
