@@ -239,23 +239,30 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
             first = false;
         }
 
-        for(int i = 0; i < 20; i++)
+        for(int i = 0; i < 19; i++)
             std::getline(s, data, ',');
 
         //entry date
         std::getline(s, data, ',');
+        //std::cout << data << std::endl;
         current->entryDate = getDate(data);
 
         //proc date
         std::getline(s, data, ',');
+        //std::cout << data << std::endl;
         current->procDate = getDate(data);
 
         //name
         s.ignore(1); //ignore starting quote
         data.clear();
-        std::getline(s, data, '\"');
+        std::getline(s, data, ',');
         current->patName = data;
-        s.ignore(1); //ignore comma
+        while (current->patName.at(current->patName.length() - 1) != '\"') {
+            current->patName += ",";
+            std::getline(s, data, ',');
+            current->patName += data;
+        }
+        current->patName = current->patName.substr(0, current->patName.length() - 1);
 
         //desc
         s.ignore(1); //ignore starting quote
@@ -291,7 +298,7 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
         
 
         data.erase(std::remove(data.begin(), data.end(), ','), data.end());
-
+        std::cout << linecount << "\t" << data << std::endl;
         current->amt = std::stod(data);
         //check << current->amt << ",\n";
         if(charge)
@@ -332,6 +339,7 @@ void ReportGenerator::indexDaySheet(std::string daySheet) {
             << current->priProvider << '\t' << current->secProvider << '\t' << current->clinic << std::endl << std::endl;*/
         procs.push_back(current);
         std::getline(reader, line);
+        linecount++;
     }
     reader.close();
     this->indexProcedures();
